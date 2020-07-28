@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# prompt and exit when wrong number of arguments
+usage(){
+	echo "Usage: ${0} suite-file ./program"
+	exit 1
+}
+
+# only works with 2 arguments
+if [ ${#} -ne 2 ]; then
+	usage
+fi
+
+# f: the testfile names from suite.txt
+for f in $(cat ${1}); do
+	# execute myprog
+	if [ -e "${f}.args" ] && [ -r "${f}.args" ]; then
+		if [ -e "${f}.in" ] && [ -r "${f}.in" ]; then
+			# .args and .in
+			${2} $(cat "${f}.args") < "${f}.in" > "${f}.out"
+		else
+			# .args
+			${2} $(cat "${f}.args") > "${f}.out"
+		fi
+	else
+		if [ -e "${f}.in" ] && [ -r "${f}.in" ]; then
+			# .in
+			${2} < "${f}.in" > "${f}.out"
+		else
+			# none
+			${2} >"${f}.out"
+		fi
+	fi
+	echo "finish ${f}"
+done

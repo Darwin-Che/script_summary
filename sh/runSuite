@@ -1,0 +1,77 @@
+#!/bin/bash 
+
+# prompt and exit when wrong number of arguments
+usage(){
+	echo "Usage: ${0} suite-file program"
+	exit 1
+}
+
+# output when all went well except expected output does not match actual output
+failed(){
+	echo "Test failed: ${1}"
+	echo "Args:"
+	if [ -e "${1}.args" ] && [ -r "${1}.args" ]; then
+		echo "$(cat "${1}.args")"
+	fi
+	echo "Input:"
+	if [ -e "${1}.in" ] && [ -r "${1}.in" ]; then
+		echo "$(cat "${1}.in")"
+	fi
+	echo "Expected:"
+	if [ -e "${1}.out" ] && [ -r "${1}.out" ]; then
+		echo "$(cat "${1}.out")"
+	fi
+	# no need to check, but I still do
+	echo "Actual:"
+	if [ -e "${2}" ] && [ -r "${2}" ]; then
+		echo "$(cat "${2}")"
+	fi
+}
+
+# prompt and exit when .out is missing or unreadable
+missout(){
+	echo "missing or unreadable ${1}.out files"
+	exit 1
+}
+
+# only works with 2 arguments
+if [ ${#} -ne 2 ]; then
+	usage
+fi
+
+# f: testfile names in suite.txt
+for f in $(cat ${1}); do
+	# check if .out file exists
+	if [ ! -e "${f}.out" ] || [ ! -r "${f}.out" ]; then
+		missout "${f}"
+	fi
+	# create a tmp file to store actual output
+	fout=$(mktemp)
+	# execute myprog
+	if [ -e "${f}.args" ] && [ -r "${f}.args" ]; then
+		if [ -e "${f}.in" ] && [ -r "${f}.in" ]; then
+			# .args and .in
+			${2} $(cat "${f}.args") < "${f}.in" > "${fout}"
+		else
+			# .args
+			${2} $(cat "${f}.args") > "${fout}"
+		fi
+	else
+		if [ -e "${f}.in" ] && [ -r "${f}.in" ]; then
+			# .in
+			${2} < "${f}.in" > "${fout}"
+		else
+			# none
+			${2} > "${fout}"
+		fi
+	fi
+	# compare the actual output and expected output
+	# exit code : 0 if same; 1 if different
+	diff "${fout}" "${f}.out" > /dev/null
+	# if different, print formated information
+	if [ ${?} -eq 1 ]; then
+		failed ${f} ${fout}
+	fi
+	# delete tmp file
+	rm ${fout}
+done
